@@ -1,0 +1,18 @@
+--Developed my LNETeam
+print("Checking http")
+parallel.waitForAny(spool(),function() 
+if (not http) then
+    term.write("  [ERROR]")
+    return
+else
+    term.write("  [OK]")
+end
+end)
+
+function spool()
+    while true do
+        textutils.slowWrite("...");
+        term.write("/b/b/b/b/b/b")
+        sleep(1)
+    end
+end
