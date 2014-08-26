@@ -4,6 +4,42 @@ local noPrompt = false
 local actions = {}
 local iLink = ""
 local data = ""
+local reg = {}
+
+local registry = 
+{
+    AddKValue = function(self,installVal)
+        table.insert(self.keys,textutils.serialize(installVal))
+        
+    end,
+}
+
+local function newRegistry(existing)
+    local temp = 
+    {
+        keys = (existing ~= nil) and textutils.unserialize(existing) or {};
+    }
+    setmetatable(temp,{__index = registry})
+end
+    
+
+local function newKeyItem(val)
+    local temp = 
+    {
+        items = {},
+        time = 0,
+    }
+    return temp
+end
+
+if (fs.exists("/.apt-get_ver")) then 
+    local handle = io.open("/.apt-get_ver","r")
+    local existingKey = handle:read()
+    handle:close()
+    if (string.len(existingKey) > 0) then
+        reg = newRegistry(existingKey)
+    end
+end
 
 if (#tArgs~=2 or #tArgs~=3) then
     print("Usage: apt-get {install/remove/update} {package} [-np]") 
@@ -61,81 +97,148 @@ if (tArgs[1] == "install") then mode = "install" end
 if (tArgs[1] == "remove") then mode = "remove" end
 if (tArgs[1] == "update") then mode = "update" end
 
-term.write("Locating package: "..tArgs[2])
-parallel.waitForAny(spool(),function() 
-    local headers = 
-    {
-      ["pack"] = tArgs[2]
-    }
-    http.request("http://lneteam.kd.io/repo.php",nil,headers)
-    requesting = true
-    while requesting do
-        local event, url, sourceText = os.pullEvent()
-  
-        if event == "http_success" then
-            iLink = sourceText.readAll()
-    
-            sourceText.close()
-            print("  [OK]")
-    
-            requesting = false
-        elseif event == "http_failure" then
-            print("  [ERROR]")
-    
-            requesting = false
-            return
-        end
-    end
-end)
-
-term.write("Resolving package from: "..iLink)
-parallel.waitForAny(spool(),function() 
-    local headers = 
-    {
-      ["pack"] = tArgs[2]
-    }
-    http.request(iLink)
-    requesting = true
-    while requesting do
-        local event, url, sourceText = os.pullEvent()
-  
-        if event == "http_success" then
-            data = sourceText.readAll()
-            sourceText.close()
-            if (string.len(data) == 0) then
-                return
-            end
+if (mode == "install") then
+    term.write("Locating package: "..tArgs[2])
+    parallel.waitForAny(spool(),function() 
+        local headers = 
+        {
+          ["pack"] = tArgs[2]
+        }
+        http.request("http://lneteam.kd.io/repo.php",nil,headers)
+        requesting = true
+        while requesting do
+            local event, url, sourceText = os.pullEvent()
+      
+            if event == "http_success" then
+                iLink = sourceText.readAll()
         
-            loadstring(data)
-            if (not install or not install.Dependencies or not install.InstallHierarchy) then
-                print(" [ERROR]")
+                sourceText.close()
+                print("  [OK]")
+        
+                requesting = false
+            elseif event == "http_failure" then
+                print("  [ERROR]")
+        
+                requesting = false
                 return
             end
+        end
+    end)
     
+    term.write("Resolving package from: "..iLink)
+    parallel.waitForAny(spool(),function() 
+        local headers = 
+        {
+          ["pack"] = tArgs[2]
+        }
+        http.request(iLink)
+        requesting = true
+        while requesting do
+            local event, url, sourceText = os.pullEvent()
+      
+            if event == "http_success" then
+                data = sourceText.readAll()
+                sourceText.close()
+                if (string.len(data) == 0) then
+                    return
+                end
             
-            print("  [OK]")
+                loadstring(data)
+                if (not install or not install.Dependencies or not install.InstallHierarchy) then
+                    print(" [ERROR]")
+                    return
+                end
+        
+                
+                print("  [OK]")
+        
+                requesting = false
+            elseif event == "http_failure" then
+                print("  [ERROR]")
+        
+                requesting = false
+                return
+            end
+        end
+    end)
     
-            requesting = false
-        elseif event == "http_failure" then
-            print("  [ERROR]")
     
-            requesting = false
-            return
+    if (install.PreAction ~= nil) then 
+        if (not install.PreAction()) then return end
+    end
+    
+    if (#install.Dependencies > 0) then
+        for k,v in ipairs(install.Dependencies) do
+            print("Getting dependency: "..v)
+            shell.run("apt-get install "..v) 
         end
     end
-end)
-
-
-if (install.PreAction ~= nil) then 
-    if (not install.PreAction()) then return end
+    
+    print("Done indexing dependencies...  [OK]")
+    
+    
+    fs.makeDir("/~tmp")
+    
+    term.write("Creating temporary directory ")
+    
+    parallel.waitForAny(spool(),function() 
+        if (not fs.exists("/~tmp")) then
+            fs.makeDir("/~tmp")
+            print("  [OK]")
+            requesting = false
+        end
+    end)
+    
+    term.write("Getting package files ")
+    parallel.waitForAny(spool(),function() 
+        for k,v in pairs(install.InstallHierarchy) do
+            local url = fs.combine(iLink,v[0]) 
+            term.write(url)
+            local response = http.get(url)
+            local handle = io.open(v[1],'w')
+            handle:write(response)
+            handle:close()
+            print("  [OK]")
+        end
+    end)
+    
+    term.write("Adding package to registry ")
+    parallel.waitForAny(spool(),function() 
+        local key = newKeyItem(install)
+        reg.AddKeyValue(key)
+        print("  [OK]")
+    end)
+    
+    if (install.PostAction ~= nil) then
+        print("Running post action")
+        sleep(2)
+        install.PostAction()
+    end
+    
+    term.write("Cleaning up files ")
+    parallel.waitForAny(spool(),function() 
+        if (fs.exists("/~tmp")) then
+            fs.delete("/~tmp") 
+        end
+        if (fs.exists(".apt-get_ver")) then
+            fs.delete(".apt-get_ver") 
+        end
+        local handle = io.open(".apt-get_ver",'w')
+        handle:write(textutils.serialize(reg.keys))
+        print("  [OK]")
+    end)
+    
+    print("Done!\r\n")
 end
 
-if (#install.Dependencies > 0) then
-    for k,v in ipairs(install.Dependencies) do
-        print("Getting dependency: "..v)
-        shell.run("apt-get install "..v) 
+function IndexProgram(pname) --API
+    if (fs.exists(".apt-get_ver")) then
+        local handle = io.open(".apt-get_ver")
+        local dat = handle:read()
+        handle:close()
+        local tReg = textutils.unserialize(dat)
+        
+    else
+        return nil 
     end
 end
-
-print("Done indexing dependencies...  [OK]")
-
