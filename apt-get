@@ -1,11 +1,17 @@
 --Developed my LNETeam
-print("Checking http")
+tArgs = {...}
+if (#tArgs==0) then
+    print("Usage: apt-get {install/remove/update} {package}") 
+    return
+end
+
+term.write("Checking http")
 parallel.waitForAny(spool(),function() 
 if (not http) then
-    term.write("  [ERROR]")
+    print("  [ERROR]")
     return
 else
-    term.write("  [OK]")
+    print("  [OK]")
 end
 end)
 
@@ -16,3 +22,48 @@ function spool()
         sleep(1)
     end
 end
+
+term.write("Checking repo")
+parallel.waitForAny(spool(),function() 
+    local headers = 
+    {
+      ["stat"] = "http_test"
+    }
+    http.request("http://lneteam.kd.io/repo.php",nil,headers)
+    requesting = true
+    while requesting do
+        local event, url, sourceText = os.pullEvent()
+  
+        if event == "http_success" then
+            local respondedText = sourceText.readAll()
+    
+            sourceText.close()
+            print("  [OK]")
+    
+            requesting = false
+        elseif event == "http_failure" then
+            print("  [ERROR]")
+    
+            requesting = false
+        end
+    end
+
+local requesting = true
+
+while requesting do
+  local event, url, sourceText = os.pullEvent()
+  
+  if event == "http_success" then
+    local respondedText = sourceText.readAll()
+    
+    sourceText.close()
+    print(respondedText)
+    
+    requesting = false
+  elseif event == "http_failure" then
+    print("Server didn't respond.")
+    
+    requesting = false
+  end
+end
+end)
