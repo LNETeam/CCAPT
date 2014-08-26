@@ -1,9 +1,16 @@
 --Developed my LNETeam
-tArgs = {...}
-if (#tArgs==0) then
-    print("Usage: apt-get {install/remove/update} {package}") 
+local tArgs = {...}
+local noPrompt = false
+local actions = {}
+local iLink = ""
+local data = ""
+
+if (#tArgs~=2 or #tArgs~=3) then
+    print("Usage: apt-get {install/remove/update} {package} [-np]") 
     return
 end
+
+if (#tArgs==3 and tArgs[3] == "-np") then noPrompt = true end
 
 term.write("Checking http")
 parallel.waitForAny(spool(),function() 
@@ -45,25 +52,90 @@ parallel.waitForAny(spool(),function()
             print("  [ERROR]")
     
             requesting = false
+            return
         end
-    end
-
-local requesting = true
-
-while requesting do
-  local event, url, sourceText = os.pullEvent()
-  
-  if event == "http_success" then
-    local respondedText = sourceText.readAll()
-    
-    sourceText.close()
-    print(respondedText)
-    
-    requesting = false
-  elseif event == "http_failure" then
-    print("Server didn't respond.")
-    
-    requesting = false
-  end
 end
 end)
+
+if (tArgs[1] == "install") then mode = "install" end
+if (tArgs[1] == "remove") then mode = "remove" end
+if (tArgs[1] == "update") then mode = "update" end
+
+term.write("Locating package: "..tArgs[2])
+parallel.waitForAny(spool(),function() 
+    local headers = 
+    {
+      ["pack"] = tArgs[2]
+    }
+    http.request("http://lneteam.kd.io/repo.php",nil,headers)
+    requesting = true
+    while requesting do
+        local event, url, sourceText = os.pullEvent()
+  
+        if event == "http_success" then
+            iLink = sourceText.readAll()
+    
+            sourceText.close()
+            print("  [OK]")
+    
+            requesting = false
+        elseif event == "http_failure" then
+            print("  [ERROR]")
+    
+            requesting = false
+            return
+        end
+    end
+end)
+
+term.write("Resolving package from: "..iLink)
+parallel.waitForAny(spool(),function() 
+    local headers = 
+    {
+      ["pack"] = tArgs[2]
+    }
+    http.request(iLink)
+    requesting = true
+    while requesting do
+        local event, url, sourceText = os.pullEvent()
+  
+        if event == "http_success" then
+            data = sourceText.readAll()
+            sourceText.close()
+            if (string.len(data) == 0) then
+                return
+            end
+        
+            loadstring(data)
+            if (not install or not install.Dependencies or not install.InstallHierarchy) then
+                print(" [ERROR]")
+                return
+            end
+    
+            
+            print("  [OK]")
+    
+            requesting = false
+        elseif event == "http_failure" then
+            print("  [ERROR]")
+    
+            requesting = false
+            return
+        end
+    end
+end)
+
+
+if (install.PreAction ~= nil) then 
+    if (not install.PreAction()) then return end
+end
+
+if (#install.Dependencies > 0) then
+    for k,v in ipairs(install.Dependencies) do
+        print("Getting dependency: "..v)
+        shell.run("apt-get install "..v) 
+    end
+end
+
+print("Done indexing dependencies...  [OK]")
+
