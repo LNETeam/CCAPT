@@ -5,6 +5,7 @@ local actions = {}
 local iLink = ""
 local data = ""
 local reg = {}
+local info = {}
 
 local registry = 
 {
@@ -105,6 +106,12 @@ repo()
     
 --end)
 
+function writeFile(stuf)
+    file = io.open("info",'w')
+    file:write(stuf)
+    file:close()
+end
+
 if (tArgs[1] == "install") then mode = "install" end
 if (tArgs[1] == "remove") then mode = "remove" end
 if (tArgs[1] == "update") then mode = "update" end
@@ -116,14 +123,17 @@ if (mode == "install") then
         {
           ["pack"] = tArgs[2]
         }
-        http.request("http://lneteam.ddns.net/repo.php",nil,headers)
+        http.request("http://lneteam.ddns.net/repo.php?pack="..tArgs[2])
         requesting = true
         while requesting do
             local event, url, sourceText = os.pullEvent()
       
             if event == "http_success" then
-                iLink = sourceText.readAll()
-        
+                info = sourceText.readAll()
+                info = string.gsub(info,"\\","")
+                
+                info = textutils.unserialize(info)
+                iLink = info[1]
                 sourceText.close()
                 print("  [OK]")
         
@@ -136,15 +146,12 @@ if (mode == "install") then
             end
         end
     end
+    locate()
     --parallel.waitForAny(spool(),function() 
-        
+        print()
     --end)
     term.write("Resolving package from: "..iLink)
     function resolve()
-        local headers = 
-        {
-          ["pack"] = tArgs[2]
-        }
         http.request(iLink)
         requesting = true
         while requesting do
