@@ -217,7 +217,7 @@ if (mode == "install") then
     term.write("Getting package files ")
     function get()
         for k,v in pairs(actions.InstallHierarchy) do
-            if (string.find(v[0],"/") ~= 0) then
+            if (string.find(v[1],"/") ~= 1) then
                 v[1] = "/"..v[1] 
             end
             local idx = string.find(iLink, "/[^/]*$")
