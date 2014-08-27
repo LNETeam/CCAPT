@@ -1,6 +1,6 @@
-function()
+
 install = {}
 install.Dependencies = {}
 install.InstallHierarchy = {{"/apt-get","/apt-get"}}
   return install
-end
+
