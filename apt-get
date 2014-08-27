@@ -1,4 +1,4 @@
---Developed my LNETeam
+--Developed by LNETeam
 local tArgs = {...}
 local noPrompt = false
 local actions = {}
@@ -139,7 +139,7 @@ if (mode == "install") then
     --parallel.waitForAny(spool(),function() 
         
     --end)
-    iLink = "https://raw.githubusercontent.com/LNETeam/CCGit/master/INSTALL"
+    iLink = "https://raw.githubusercontent.com/LNETeam/CCGit/master/INSTALL" --this is temporary, making sure the install process works
     term.write("Resolving package from: "..iLink)
     function resolve()
         local headers = 
@@ -217,6 +217,9 @@ if (mode == "install") then
     term.write("Getting package files ")
     function get()
         for k,v in pairs(actions.InstallHierarchy) do
+            if (string.find(v[0],"/") ~= 0) then
+                v[1] = "/"..v[1] 
+            end
             local idx = string.find(iLink, "/[^/]*$")
             iLink = string.sub(iLink,0,idx-1)
             local url = iLink..v[1] 

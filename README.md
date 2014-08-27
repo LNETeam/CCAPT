@@ -18,6 +18,7 @@ install.PostAction = function() print("Hi") end --This is the stuff executed aft
 install.PreAction = function() print("Derp") end --This is the stuff executed prior apt-get beginning
 install.Dependencies = {} --This list should contain the names of apis/programs you package needs. The names should be relevant to lneteam repos. CCAPT will resolve them and get them as well, a streamlined process. Much like install mysql on a linux server via command line. Configure one, move on.
 install.InstallHierarchy = {{"/os/myapi","superOS/os/myapi"},{},{}} --This table contains information to distribute the package to its proper location. The first value contains the repo location, the second contains install location.
+return install
 
 Thats it! The file should be called "INSTALL" (without quotes). We'll take it from there.
 
