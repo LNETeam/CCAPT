@@ -80,7 +80,7 @@ function repo()
     {
       ["stat"] = "http_test"
     }
-    http.request("http://lneteam.kd.io/repo.php",nil,headers)
+    http.request("http://lneteam.ddns.net/repo.php",nil,headers)
     requesting = true
     while requesting do
         local event, url, sourceText = os.pullEvent()
@@ -116,7 +116,7 @@ if (mode == "install") then
         {
           ["pack"] = tArgs[2]
         }
-        http.request("http://lneteam.kd.io/repo.php",nil,headers)
+        http.request("http://lneteam.ddns.net/repo.php",nil,headers)
         requesting = true
         while requesting do
             local event, url, sourceText = os.pullEvent()
@@ -139,7 +139,6 @@ if (mode == "install") then
     --parallel.waitForAny(spool(),function() 
         
     --end)
-    iLink = "https://raw.githubusercontent.com/LNETeam/CCGit/master/INSTALL" --this is temporary, making sure the install process works
     term.write("Resolving package from: "..iLink)
     function resolve()
         local headers = 
