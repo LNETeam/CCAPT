@@ -187,9 +187,7 @@ if (mode == "install") then --Install
         end
     end
     locate()
-    --parallel.waitForAny(spool(),function() 
-
-    --end)
+    
     term.write("Resolving package from: "..iLink)
     function resolve()
         http.request(iLink)
@@ -278,38 +276,65 @@ if (mode == "install") then --Install
     end
     temp()
     
+    local isPastebin = false
+    if (string.find(iLink,"pastebin")) then
+        isPastebin = true
+    end
+    
+    
     term.write("Getting package files... ")
     local function get()
-        for k,v in pairs(actions.InstallHierarchy) do
-            if (string.find(v[1],"/") ~= 1) then
-                v[1] = "/"..v[1] 
-            end
-            local idx = string.find(iLink, "/[^/]*$")
-            iLink = string.sub(iLink,0,idx-1)
-            local url = iLink..v[1] 
-            http.request(url)
-            requesting = true
-            dat = "";
-            while requesting do
-                local event, url, sourceText = os.pullEvent()
-                if event == "http_success" then
-                    dat = sourceText.readAll()
-                    sourceText.close()            
-                    requesting = false
-                elseif event == "http_failure" then
-                    if (color) then term.setTextColor(colors.red) end
-                    print("  [ERROR]")
-                    if (color) then term.setTextColor(colors.white) end
-                    error()
-                    requesting = false
+        if (not isPastebin) then
+        
+            for k,v in pairs(actions.InstallHierarchy) do
+                if (string.find(v[1],"/") ~= 1) then
+                    v[1] = "/"..v[1] 
                 end
+                local idx = string.find(iLink, "/[^/]*$")
+                iLink = string.sub(iLink,0,idx-1)
+                local url = iLink..v[1] 
+                http.request(url)
+                requesting = true
+                dat = "";
+                while requesting do
+                    local event, url, sourceText = os.pullEvent()
+                    if event == "http_success" then
+                        dat = sourceText.readAll()
+                        sourceText.close()            
+                        requesting = false
+                    elseif event == "http_failure" then
+                        if (color) then term.setTextColor(colors.red) end
+                        print("  [ERROR]")
+                        if (color) then term.setTextColor(colors.white) end
+                        error()
+                        requesting = false
+                    end
+                end
+                local handle = io.open(v[2],'w')
+                handle:write(dat)
+                handle:close()
+                if (color) then term.setTextColor(colors.green) end
+                print("  [OK]")
+                if (color) then term.setTextColor(colors.white) end
             end
-            local handle = io.open(v[2],'w')
-            handle:write(dat)
-            handle:close()
-            if (color) then term.setTextColor(colors.green) end
-            print("  [OK]")
-            if (color) then term.setTextColor(colors.white) end
+        else
+            
+            local s,err = pcall(
+                function() 
+                    for k,v in ipairs(actions.InstallHierarchy) do
+                    shell.run("pastebin","get",v[1],v[2])
+                    end 
+            end)
+            if (s) then
+                if (color) then term.setTextColor(colors.green) end
+                print("  [OK]")
+                if (color) then term.setTextColor(colors.white) end
+            else
+                if (color) then term.setTextColor(colors.red) end
+                print("  [ERROR]")
+                if (color) then term.setTextColor(colors.white) end
+                error()
+            end
         end
     end
     get()
