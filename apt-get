@@ -69,12 +69,12 @@ else
     reg = newRegistry()
 end
 
-if (#tArgs~=2 ) then
-    print("Usage: apt-get {install/remove/update} {package} [-np]") 
-    error()
-end
+--if (#tArgs~=2 ) then
+ --   print("Usage: apt-get {install/remove/update} {package} [-np]") 
+ --   error()
+--end
 
-if (#tArgs==3 and tArgs[3] == "-np") then noPrompt = true end
+--if (#tArgs==3 and tArgs[3] == "-np") then noPrompt = true end
 
 term.write("Checking http...")
 function check()
@@ -139,6 +139,7 @@ end
 if (tArgs[1] == "install") then mode = "install" end
 if (tArgs[1] == "remove") then mode = "remove" end
 if (tArgs[1] == "update") then mode = "update" end
+if (tArgs[1] == "list") then mode = "list" end
 
 
 
@@ -442,6 +443,22 @@ elseif (mode == "update") then --Update                                         
         if (color) then term.setTextColor(colors.white) end
         error()
     end
+    term.write("Removing files... ")
+    function remove()
+        for k,v in ipairs(tab.InstallHierarchy) do
+            fs.delete(v[2])
+        end
+    end
+    local stat,err = pcall(remove)
+    if (stat) then
+        if (color) then term.setTextColor(colors.green) end
+        print("  [OK]")
+        if (color) then term.setTextColor(colors.white) end
+    else
+        if (color) then term.setTextColor(colors.red) end
+        print("  [ERROR]")
+        if (color) then term.setTextColor(colors.white) end
+    end
     term.write("Locating package: "..tArgs[2].."...")
     function locate()
         local headers = 
@@ -551,7 +568,7 @@ elseif (mode == "update") then --Update                                         
     if (#actions.Dependencies > 0) then
         for k,v in ipairs(actions.Dependencies) do
             print("Getting dependency: "..v)
-            shell.run("apt-get install "..v) 
+            shell.run(shell.getRunningProgram().." install "..v) 
         end
     end
     
@@ -672,6 +689,58 @@ elseif (mode == "update") then --Update                                         
     end
 
     print("Done!\n")
+elseif (mode == "list") then --not working
+    term.clear()
+    term.setCursorPos(1,1)
+    i = 0
+    local out = {}
+    t = #out
+    c=0
+    local buffer = {}
+    local width,height = term.getSize()
+    table.insert(out,"List of packages: ")
+    for k,v in ipairs(reg.keys) do
+        print()
+        for i,p in pairs(v) do
+            if (type(p)~="table") then
+                table.insert(out,i..":"..p)
+            else
+                table.insert(out,i..":"..textutils.serialize(p))
+            end
+        end
+    end
+    term.clear()
+    term.setCursorPos(1,1)
+    while true do
+        table.insert(buffer,out[1])
+        table.insert(buffer,out[2])
+        for m=0,19,1 do
+            --table.insert(buffer,out[m])
+        end
+        writeFile(textutils.serialize(buffer))
+        for k,v in pairs(buffer) do
+            print(v)
+        end
+        buffer = {}
+        local _,scroll = os.pullEvent("mouse_scroll")
+
+        if (scroll==1 and c~=t) then
+            i = i + 1
+            t = t + 1
+            --term.scroll(i)
+            i=0
+            c = c+1
+        elseif (scroll==-1 and c ~= 1) then
+            i = i - 1
+            t = t - 1 
+            --term.scroll(i)
+            i=0
+            c = c- 1
+        end
+        term.clear()
+        term.setCursorPos(1,1)
+        sleep(.1)
+    end
 end
 
 function IndexProgram(pname) --API
