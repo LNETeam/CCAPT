@@ -23,7 +23,7 @@ local registry =
 local function newRegistry(existing)
     local temp = 
     {
-        keys = {}, --(existing ~= nil) and textutils.unserialize(existing) or ;
+        keys = {},
     }
     setmetatable(temp,{__index = registry})
     return temp
@@ -80,21 +80,16 @@ term.write("Checking http...")
 function check()
     if (not http) then
         if (color) then term.setTextColor(colors.red) end
-    print("  [ERROR]")
-    if (color) then term.setTextColor(colors.white) end
-    error()
-else
-    if (color) then term.setTextColor(colors.green) end
-    print("  [OK]")
-    if (color) then term.setTextColor(colors.white) end
-end
+        print("  [ERROR]")
+        if (color) then term.setTextColor(colors.white) end
+        error({code=404})
+    else
+        if (color) then term.setTextColor(colors.green) end
+        print("  [OK]")
+        if (color) then term.setTextColor(colors.white) end
+    end
 end
 check()
---parallel.waitForAny(spool(),function() 
-
---end)
-
-
 
 term.write("Checking repo...")
 function repo()
@@ -120,15 +115,11 @@ function repo()
             if (color) then term.setTextColor(colors.red) end
             print("  [ERROR]")
             if (color) then term.setTextColor(colors.white) end
-            error()
-            
+            error({code=404})
         end
-end
+    end
 end
 repo()
---parallel.waitForAny(spool(),function() 
-    
---end)
 
 function writeFile(stuf)
     file = io.open("info",'w')
@@ -139,21 +130,21 @@ end
 if (tArgs[1] == "install") then mode = "install" end
 if (tArgs[1] == "remove") then mode = "remove" end
 if (tArgs[1] == "update") then mode = "update" end
-if (tArgs[1] == "list") then mode = "list" end
+--if (tArgs[1] == "list") then mode = "list" end
 
 
 
 if (mode == "install") then --Install
     for k,v in ipairs(reg.keys) do
-    for i,p in pairs(v) do
-        if (p==tArgs[2]) then
-            term.write("Package already installed!")
-            if (color) then term.setTextColor(colors.red) end
-                print("  [ERROR]")
-            if (color) then term.setTextColor(colors.white) end
-            error()
+        for i,p in pairs(v) do
+            if (p==tArgs[2]) then
+                term.write("Package already installed!")
+                if (color) then term.setTextColor(colors.green) end
+                    print("  [OK]")
+                if (color) then term.setTextColor(colors.white) end
+                error()
+            end
         end
-    end
     end
     term.write("Locating package: "..tArgs[2].."...")
     function locate()
@@ -222,7 +213,7 @@ if (mode == "install") then --Install
                 end
                 actions = i()
                 if (not actions or not actions.Dependencies or not actions.InstallHierarchy) then
-                if (color) then term.setTextColor(colors.red) end
+                    if (color) then term.setTextColor(colors.red) end
                     print(" [ERROR] [PKG Fail]")
                     if (color) then term.setTextColor(colors.white) end
                     error()
@@ -244,29 +235,35 @@ if (mode == "install") then --Install
         end
     end
     resolve()
-    --parallel.waitForAny(spool(),function() 
-        
-    --end)
-    
     
     if (actions.PreAction ~= nil) then 
         if (not actions.PreAction()) then return end
     end
-    
-    if (#actions.Dependencies > 0) then
-        for k,v in ipairs(actions.Dependencies) do
-            print("Getting dependency: "..v)
-            shell.run("apt-get install "..v) 
+    local stat,err = pcall(function()
+        if (#actions.Dependencies > 0) then
+            for k,v in ipairs(actions.Dependencies) do
+                print("Getting dependency: "..v)
+                shell.run("apt-get install "..v) 
+            end
         end
+    end)
+    
+    if stat then
+        term.write("Done indexing dependencies... ")
+        if (color) then term.setTextColor(colors.green) end
+        print("  [OK]")
+        if (color) then term.setTextColor(colors.white) end
+    else
+        term.write("Done indexing dependencies... ")
+        if (color) then term.setTextColor(colors.red) end
+        print("  [ERROR]")
+        if (color) then term.setTextColor(colors.white) end
     end
-    
-    print("Done indexing dependencies...  [OK]")
-    
     
     fs.makeDir("/~tmp")
     
     term.write("Creating temporary directory... ")
-    function temp()
+    local function temp()
         if (not fs.exists("/~tmp")) then
             fs.makeDir("/~tmp")
             if (color) then term.setTextColor(colors.green) end
@@ -280,12 +277,9 @@ if (mode == "install") then --Install
         end
     end
     temp()
-    --parallel.waitForAny(spool(),function() 
-        
-    --end)
     
     term.write("Getting package files... ")
-    function get()
+    local function get()
         for k,v in pairs(actions.InstallHierarchy) do
             if (string.find(v[1],"/") ~= 1) then
                 v[1] = "/"..v[1] 
@@ -319,12 +313,9 @@ if (mode == "install") then --Install
         end
     end
     get()
-    --parallel.waitForAny(spool(),function() 
-        
-    --end)
     
     term.write("Adding package to registry... ")
-    function add()
+    local function add()
         local key = newKeyItem(actions)
         reg:AddKeyValue(prepareKey(actions))
         if (color) then term.setTextColor(colors.green) end
@@ -332,14 +323,9 @@ if (mode == "install") then --Install
         if (color) then term.setTextColor(colors.white) end
     end
     add()
-    --parallel.waitForAny(spool(),function() 
-        
-    --end)
-    
-    
     
     term.write("Cleaning up files... ")
-    function clean()
+    local function clean()
         if (fs.exists("/~tmp")) then
             fs.delete("/~tmp") 
         end
@@ -354,9 +340,6 @@ if (mode == "install") then --Install
         if (color) then term.setTextColor(colors.white) end
     end
     clean()
-    --parallel.waitForAny(spool(),function() 
-        
-    --end)
     
     if (actions.PostAction ~= nil) then
         print("Running post action")
@@ -472,12 +455,12 @@ elseif (mode == "update") then --Update                                         
                 sourceText.close()
                 if (color) then term.setTextColor(colors.green) end
                 print("  [OK]")
-        if (color) then term.setTextColor(colors.white) end
+                if (color) then term.setTextColor(colors.white) end
                 requesting = false
             elseif event == "http_failure" then
                 if (color) then term.setTextColor(colors.red) end
                 print("  [ERROR]")
-        if (color) then term.setTextColor(colors.white) end
+                if (color) then term.setTextColor(colors.white) end
                 requesting = false
                 error()
             end
