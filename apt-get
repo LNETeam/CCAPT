@@ -216,14 +216,14 @@ if (mode == "install") then --Install
                 local i = loadstring(data)
                 if (i==nil) then
                     if (color) then term.setTextColor(colors.red) end
-                    print("  [ERROR]")
+                    print("  [ERROR] [NIL]")
                     if (color) then term.setTextColor(colors.white) end
                     error()
                 end
                 actions = i()
-                if (not install or not install.Dependencies or not install.InstallHierarchy) then
+                if (not actions or not actions.Dependencies or not actions.InstallHierarchy) then
                 if (color) then term.setTextColor(colors.red) end
-                    print(" [ERROR]")
+                    print(" [ERROR] [PKG Fail]")
                     if (color) then term.setTextColor(colors.white) end
                     error()
                 end
@@ -298,7 +298,6 @@ if (mode == "install") then --Install
             dat = "";
             while requesting do
                 local event, url, sourceText = os.pullEvent()
-          
                 if event == "http_success" then
                     dat = sourceText.readAll()
                     sourceText.close()            
@@ -443,22 +442,7 @@ elseif (mode == "update") then --Update                                         
         if (color) then term.setTextColor(colors.white) end
         error()
     end
-    term.write("Removing files... ")
-    function remove()
-        for k,v in ipairs(tab.InstallHierarchy) do
-            fs.delete(v[2])
-        end
-    end
-    local stat,err = pcall(remove)
-    if (stat) then
-        if (color) then term.setTextColor(colors.green) end
-        print("  [OK]")
-        if (color) then term.setTextColor(colors.white) end
-    else
-        if (color) then term.setTextColor(colors.red) end
-        print("  [ERROR]")
-        if (color) then term.setTextColor(colors.white) end
-    end
+    
     term.write("Locating package: "..tArgs[2].."...")
     function locate()
         local headers = 
@@ -507,6 +491,23 @@ elseif (mode == "update") then --Update                                         
         if (color) then term.setTextColor(colors.white) end
         print("Done!\n")
         error()
+    end
+
+    term.write("Removing files... ")
+    function remove()
+        for k,v in ipairs(tab.InstallHierarchy) do
+            fs.delete(v[2])
+        end
+    end
+    local stat,err = pcall(remove)
+    if (stat) then
+        if (color) then term.setTextColor(colors.green) end
+        print("  [OK]")
+        if (color) then term.setTextColor(colors.white) end
+    else
+        if (color) then term.setTextColor(colors.red) end
+        print("  [ERROR]")
+        if (color) then term.setTextColor(colors.white) end
     end
 
     print("Updating package: "..tArgs[2].." to: "..version)
