@@ -436,7 +436,7 @@ elseif (mode == "remove") then --Remove
         if (color) then term.setTextColor(colors.white) end
     end
     print("Done!\n")
-elseif (mode == "update") then --Update                                                              UPDATE
+elseif (mode == "update") then --Update                                                              
     local found = false
     local tab = {}
     for k,v in ipairs(reg.keys) do
