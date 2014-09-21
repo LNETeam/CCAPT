@@ -308,7 +308,7 @@ if (mode == "install") then --Install
                     elseif event == "http_failure" then
                         if (color) then term.setTextColor(colors.red) end
 
-                        print("  [ERROR]")
+                        print("  [ERROR] "..url)
                         if (color) then term.setTextColor(colors.white) end
                         error()
                         requesting = false
@@ -436,7 +436,7 @@ elseif (mode == "remove") then --Remove
         if (color) then term.setTextColor(colors.white) end
     end
     print("Done!\n")
-elseif (mode == "update") then --Update                                                              
+elseif (mode == "update") then --Update                                                              UPDATE
     local found = false
     local tab = {}
     for k,v in ipairs(reg.keys) do
@@ -476,11 +476,12 @@ elseif (mode == "update") then --Update
                     error()
                 end
                 info = string.gsub(info,"\\","")
-                
-                info = textutils.unserialize(info)
-                iLink = info[1]
-                author = info[2]
-                version = info[3]
+
+                inf = textutils.unserialize(info)
+                writeFile(info)
+                iLink = inf[1]
+                author = inf[2]
+                version = inf[3]
                 sourceText.close()
                 if (color) then term.setTextColor(colors.green) end
                 print("  [OK]")
