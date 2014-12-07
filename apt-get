@@ -97,7 +97,7 @@ function repo()
     {
       ["stat"] = "http_test"
     }
-    http.request("http://lneteam.ddns.net/repo.php",nil,headers)
+    http.request("http://104.131.36.207/repo.php",nil,headers)
     requesting = true
     while requesting do
         local event, url, sourceText = os.pullEvent()
@@ -152,7 +152,7 @@ if (mode == "install") then --Install
         {
           ["pack"] = tArgs[2]
         }
-        http.request("http://lneteam.ddns.net/repo.php?pack="..tArgs[2])
+        http.request("http://104.131.36.207/repo.php?pack="..tArgs[2])
         requesting = true
         while requesting do
             local event, url, sourceText = os.pullEvent()
@@ -461,7 +461,7 @@ elseif (mode == "update") then --Update                                         
         {
           ["pack"] = tArgs[2]
         }
-        http.request("http://lneteam.ddns.net/repo.php?pack="..tArgs[2])
+        http.request("http://104.131.36.207/repo.php?pack="..tArgs[2])
         requesting = true
         while requesting do
             local event, url, sourceText = os.pullEvent()
