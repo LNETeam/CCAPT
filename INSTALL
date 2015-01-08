@@ -2,7 +2,7 @@ install = {}
 install.Dependencies = {}
 install.PreAction = function()
 	if (fs.exists("apt-get")) then
-		fs.rename("apt-get","apt-get_old")
+		fs.move("apt-get","apt-get_old")
 	end
 end
 install.InstallHierarchy = {{"/apt-get.lua","/apt-get"}}

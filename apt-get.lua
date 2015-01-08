@@ -774,7 +774,7 @@ elseif (mode == "list") then --not working
     end
 elseif (mode == "upgrade") then
     tArgs[2] = "ccapt"
-    term.write("Upgrading APT...")
+    print("Upgrading APT...")
     term.write("Locating package: "..tArgs[2].."...")
     function locate()
         local headers = 
@@ -864,6 +864,7 @@ elseif (mode == "upgrade") then
     resolve()
     
     if (actions.PreAction ~= nil) then 
+        print("Running pre action...")
         if (not actions.PreAction()) then return end
     end
     local stat,err = pcall(function()
