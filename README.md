@@ -3,7 +3,7 @@ CCAPT
 
 Developed and maintained by: LNETeam
 
-USAGE: apt-get {install/remove/update} [package name]
+USAGE: apt-get {install/remove/update/upgrade} [package name]
 
 Install: Our installation process works by developers adding repo locations to their projects hosted at our site. We store web-location,project dependencies, and information in a database which can be accessed through our CC app. Once installed, CCAPT will add the projects to a type of registry, tracking installed files (and locations of). If you would like to use CCAPT internally, the API is embedded...
 

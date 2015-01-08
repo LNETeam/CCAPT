@@ -48,14 +48,6 @@ local function newKeyItem(val)
     return temp
 end
 
-function spool()
-    while true do
-        textutils.slowWrite("...");
-        term.write("/b/b/b/b/b/b")
-        sleep(1)
-    end
-end
-
 if (fs.exists("/.apt-get_ver")) then 
     local handle = fs.open("/.apt-get_ver","r")
     local existingKey = handle.readAll()
@@ -130,6 +122,7 @@ end
 if (tArgs[1] == "install") then mode = "install" end
 if (tArgs[1] == "remove") then mode = "remove" end
 if (tArgs[1] == "update") then mode = "update" end
+if (tArgs[1] == "upgrade") then mode = "upgrade" end
 --if (tArgs[1] == "list") then mode = "list" end
 
 
@@ -779,6 +772,230 @@ elseif (mode == "list") then --not working
         term.setCursorPos(1,1)
         sleep(.1)
     end
+elseif (mode == "upgrade") then
+    tArgs[2] = "ccapt"
+    term.write("Upgrading APT...")
+    term.write("Locating package: "..tArgs[2].."...")
+    function locate()
+        local headers = 
+        {
+          ["pack"] = "ccapt"
+        }
+        http.request("http://104.131.36.207/repo.php?pack="..tArgs[2])
+        requesting = true
+        while requesting do
+            local event, url, sourceText = os.pullEvent()
+      
+            if event == "http_success" then
+                info = sourceText.readAll()
+                if (info == "none") then
+                    if (color) then term.setTextColor(colors.red) end
+                    print("  [ERROR]")
+                    if (color) then term.setTextColor(colors.white) end
+                    print("No package '"..tArgs[2].."' found!")
+                    error()
+                end
+                info = string.gsub(info,"\\","")
+                
+                info = textutils.unserialize(info)
+                iLink = info[1]
+                author = info[2]
+                version = info[3]
+                sourceText.close()
+                if (color) then term.setTextColor(colors.green) end
+                print("  [OK]")
+        if (color) then term.setTextColor(colors.white) end
+                requesting = false
+            elseif event == "http_failure" then
+                if (color) then term.setTextColor(colors.red) end
+                print("  [ERROR]")
+        if (color) then term.setTextColor(colors.white) end
+                requesting = false
+                error()
+            end
+        end
+    end
+    locate()
+    
+    term.write("Resolving package from: "..iLink)
+    function resolve()
+        http.request(iLink)
+        requesting = true
+        while requesting do
+            local event, url, sourceText = os.pullEvent()
+      
+            if event == "http_success" then
+                data = sourceText.readAll()
+                sourceText.close()
+                if (string.len(data) == 0) then
+                    error()
+                end
+                data = string.gsub(data,"\\","")
+                local i = loadstring(data)
+                if (i==nil) then
+                    if (color) then term.setTextColor(colors.red) end
+                    print("  [ERROR] [NIL]")
+                    if (color) then term.setTextColor(colors.white) end
+                    error()
+                end
+                actions = i()
+                if (not actions or not actions.Dependencies or not actions.InstallHierarchy) then
+                    if (color) then term.setTextColor(colors.red) end
+                    print(" [ERROR] [PKG Fail]")
+                    if (color) then term.setTextColor(colors.white) end
+                    error()
+                end
+        
+                if (color) then term.setTextColor(colors.green) end
+                print("  [OK]")
+                if (color) then term.setTextColor(colors.white) end
+        
+                requesting = false
+            elseif event == "http_failure" then
+                if (color) then term.setTextColor(colors.red) end
+                print("  [ERROR]")
+                if (color) then term.setTextColor(colors.white) end
+        
+                requesting = false
+                return
+            end
+        end
+    end
+    resolve()
+    
+    if (actions.PreAction ~= nil) then 
+        if (not actions.PreAction()) then return end
+    end
+    local stat,err = pcall(function()
+        if (#actions.Dependencies > 0) then
+            for k,v in ipairs(actions.Dependencies) do
+                print("Getting dependency: "..v)
+                shell.run("apt-get install "..v) 
+            end
+        end
+    end)
+    
+    if stat then
+        term.write("Done indexing dependencies... ")
+        if (color) then term.setTextColor(colors.green) end
+        print("  [OK]")
+        if (color) then term.setTextColor(colors.white) end
+    else
+        term.write("Done indexing dependencies... ")
+        if (color) then term.setTextColor(colors.red) end
+        print("  [ERROR]")
+        if (color) then term.setTextColor(colors.white) end
+    end
+    
+    fs.makeDir("/~tmp")
+    
+    term.write("Creating temporary directory... ")
+    local function temp()
+        if (not fs.exists("/~tmp")) then
+            fs.makeDir("/~tmp")
+            if (color) then term.setTextColor(colors.green) end
+            print("  [OK]")
+            if (color) then term.setTextColor(colors.white) end
+            requesting = false
+        else
+            if (color) then term.setTextColor(colors.green) end
+            print(" [OK]")
+            if (color) then term.setTextColor(colors.white) end
+        end
+    end
+    temp()
+    
+    local isPastebin = false
+    if (string.find(iLink,"pastebin")) then
+        isPastebin = true
+    end
+    
+    
+    term.write("Getting package files... ")
+    local function get()
+        if (not isPastebin) then
+            local finlink = false
+            for k,v in pairs(actions.InstallHierarchy) do
+                if (string.find(v[1],"/") ~= 1) then
+                    v[1] = "/"..v[1] 
+                end
+                local idx = string.find(iLink, "/[^/]*$")
+                if (finlink == false) then
+                     iLink = string.sub(iLink,0,idx-1)
+                     finlink = true
+                end
+                local url = iLink..v[1] 
+                http.request(url)
+                requesting = true
+                dat = "";
+                while requesting do
+                    local event, url, sourceText = os.pullEvent()
+                    if event == "http_success" then
+                        dat = sourceText.readAll()
+                        sourceText.close()            
+                        requesting = false
+                    elseif event == "http_failure" then
+                        if (color) then term.setTextColor(colors.red) end
+
+                        print("  [ERROR] "..url)
+                        if (color) then term.setTextColor(colors.white) end
+                        error()
+                        requesting = false
+                    end
+                end
+                local handle = io.open(v[2],'w')
+                handle:write(dat)
+                handle:close()
+                if (color) then term.setTextColor(colors.green) end
+                print("  [OK]")
+                if (color) then term.setTextColor(colors.white) end
+            end
+        else
+            
+            local s,err = pcall(
+                function() 
+                    for k,v in ipairs(actions.InstallHierarchy) do
+                    shell.run("pastebin","get",v[1],v[2])
+                    end 
+            end)
+            if (s) then
+                if (color) then term.setTextColor(colors.green) end
+                print("  [OK]")
+                if (color) then term.setTextColor(colors.white) end
+            else
+                if (color) then term.setTextColor(colors.red) end
+                print("  [ERROR]")
+                if (color) then term.setTextColor(colors.white) end
+                error()
+            end
+        end
+    end
+    get()
+    
+    term.write("Cleaning up files... ")
+    local function clean()
+        if (fs.exists("/~tmp")) then
+            fs.delete("/~tmp") 
+        end
+        if (fs.exists(".apt-get_ver")) then
+            fs.delete(".apt-get_ver") 
+        end
+        local handle = io.open(".apt-get_ver",'w')
+        handle:write(textutils.serialize(reg.keys))
+        handle:close()
+        if (color) then term.setTextColor(colors.green) end
+        print("  [OK]")
+        if (color) then term.setTextColor(colors.white) end
+    end
+    clean()
+    
+    if (actions.PostAction ~= nil) then
+        print("Running post action")
+        sleep(2)
+        actions.PostAction()
+    end
+
+    print("Done!\n")
 end
 
 function IndexProgram(pname) --API

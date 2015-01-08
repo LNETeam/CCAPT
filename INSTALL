@@ -1,4 +1,14 @@
 install = {}
 install.Dependencies = {}
+install.PreAction = function()
+	if (fs.exists("apt-get")) then
+		fs.rename("apt-get","apt-get_old")
+	end
+end
 install.InstallHierarchy = {{"/apt-get.lua","/apt-get"}}
+install.PostAction = function()
+	if fs.exists("apt-get_old") then
+		fs.delete("apt-get_old")
+	end
+end
 return install
