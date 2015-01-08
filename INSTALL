@@ -1,4 +1,4 @@
 install = {}
 install.Dependencies = {}
-install.InstallHierarchy = {{"/apt-get.lua","/apt-get"}}
+install.InstallHierarchy = {{"/apt-get","/apt-get"}}
 return install
