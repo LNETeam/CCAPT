@@ -995,7 +995,6 @@ elseif (mode == "upgrade") then
     
     if (actions.PostAction ~= nil) then
         print("Running post action...")
-        sleep(2)
         local stat,err = pcall(actions.PostAction)
         if not stat then error("Prob:"..err) end
     end
