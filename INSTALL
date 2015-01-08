@@ -9,7 +9,6 @@ install.PreAction = function()
 end
 install.InstallHierarchy = {{"/apt-get.lua","/apt-get"}}
 install.PostAction = function()
-return
 	if fs.exists("apt-get_old") then
 		fs.delete("apt-get_old")
 	end
