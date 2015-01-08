@@ -2,7 +2,7 @@ install = {}
 install.Dependencies = {}
 install.PreAction = function()
 	if (fs.exists("apt-get")) then
-		fs.exists("apt-get_old") and fs.delete("apt-get_old")
+		if (fs.exists("apt-get_old")) then fs.delete("apt-get_old") end
 		fs.move("apt-get","apt-get_old")
 		return true
 	end
