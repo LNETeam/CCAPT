@@ -228,6 +228,7 @@ if (mode == "install") then --Install
     resolve()
     
     if (actions.PreAction ~= nil) then 
+        print("Running pre action...")
         if (not actions.PreAction()) then return end
     end
     local stat,err = pcall(function()
@@ -569,6 +570,7 @@ elseif (mode == "update") then --Update                                         
     
     
     if (actions.PreAction ~= nil) then 
+        print("Running pre action...")
         if (not actions.PreAction()) then return end
     end
     
@@ -865,7 +867,8 @@ elseif (mode == "upgrade") then
     
     if (actions.PreAction ~= nil) then 
         print("Running pre action...")
-        if (not actions.PreAction()) then return end
+        actions.PreAction()
+        --if (not actions.PreAction()) then return end
     end
     local stat,err = pcall(function()
         if (#actions.Dependencies > 0) then
@@ -993,7 +996,8 @@ elseif (mode == "upgrade") then
     if (actions.PostAction ~= nil) then
         print("Running post action")
         sleep(2)
-        actions.PostAction()
+        local stat,err = pcall(actions.PostAction())
+        if not stat then error("Prob:"..err) end
     end
 
     print("Done!\n")
