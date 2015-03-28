@@ -8,6 +8,7 @@ local reg = {}
 local info = {}
 local color = term.isColor() and true or false
 local author,version = ""
+local repoAddr = "http://104.131.36.207"
 
 
 local registry = 
@@ -89,7 +90,7 @@ function repo()
     {
       ["stat"] = "http_test"
     }
-    http.request("http://104.131.36.207/repo.php",nil,headers)
+    http.request(repoAddr.."/repo.php",nil,headers)
     requesting = true
     while requesting do
         local event, url, sourceText = os.pullEvent()
@@ -123,7 +124,6 @@ if (tArgs[1] == "install") then mode = "install" end
 if (tArgs[1] == "remove") then mode = "remove" end
 if (tArgs[1] == "update") then mode = "update" end
 if (tArgs[1] == "upgrade") then mode = "upgrade" end
---if (tArgs[1] == "list") then mode = "list" end
 
 
 
@@ -145,7 +145,7 @@ if (mode == "install") then --Install
         {
           ["pack"] = tArgs[2]
         }
-        http.request("http://104.131.36.207/repo.php?pack="..tArgs[2])
+        http.request(repoAddr.."/repo.php?pack="..tArgs[2])
         requesting = true
         while requesting do
             local event, url, sourceText = os.pullEvent()
@@ -455,7 +455,7 @@ elseif (mode == "update") then --Update                                         
         {
           ["pack"] = tArgs[2]
         }
-        http.request("http://104.131.36.207/repo.php?pack="..tArgs[2])
+        http.request(repoAddr.."/repo.php?pack="..tArgs[2])
         requesting = true
         while requesting do
             local event, url, sourceText = os.pullEvent()
@@ -783,7 +783,7 @@ elseif (mode == "upgrade") then
         {
           ["pack"] = "ccapt"
         }
-        http.request("http://104.131.36.207/repo.php?pack="..tArgs[2])
+        http.request(repoAddr.."/repo.php?pack="..tArgs[2])
         requesting = true
         while requesting do
             local event, url, sourceText = os.pullEvent()
@@ -1004,11 +1004,15 @@ end
 
 function IndexProgram(pname) --API
     if (fs.exists(".apt-get_ver")) then
-        local handle = io.open(".apt-get_ver")
-        local dat = handle:read()
+        local handle = io.open(".apt-get_ver","r")
+        local dat = handle:read("*")
         handle:close()
         local tReg = textutils.unserialize(dat)
-        
+        for k,v in pairs(tReg) do
+            if (v.Name == pname) then
+                return v
+            end
+        end
     else
         return nil 
     end
