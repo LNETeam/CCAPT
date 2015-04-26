@@ -1,5 +1,11 @@
 --Developed by LNETeam
 local tArgs = {...}
+local bypass = false
+if (#tArgs == 3) then
+    if (tArgs[3] == "--suppress") then
+        bypass = true
+    end
+end
 local noPrompt = false
 local actions = {}
 local iLink = ""
@@ -10,6 +16,107 @@ local color = term.isColor() and true or false
 local author,version = ""
 local repoAddr = "http://104.131.36.207"
 
+local b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+-- encoding
+function enc(data)
+    return ((data:gsub('.', function(x) 
+        local r,b='',x:byte()
+        for i=8,1,-1 do r=r..(b%2^i-b%2^(i-1)>0 and '1' or '0') end
+        return r;
+    end)..'0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
+        if (#x < 6) then return '' end
+        local c=0
+        for i=1,6 do c=c+(x:sub(i,i)=='1' and 2^(6-i) or 0) end
+        return b:sub(c+1,c+1)
+    end)..({ '', '==', '=' })[#data%3+1])
+end
+
+-- decoding
+function dec(data)
+    data = string.gsub(data, '[^'..b..'=]', '')
+    return (data:gsub('.', function(x)
+        if (x == '=') then return '' end
+        local r,f='',(b:find(x)-1)
+        for i=6,1,-1 do r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0') end
+        return r;
+    end):gsub('%d%d%d?%d?%d?%d?%d?%d?', function(x)
+        if (#x ~= 8) then return '' end
+        local c=0
+        for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end
+        return string.char(c)
+    end))
+end
+
+
+function collectBase(master)
+    local base = {}
+    for k,v in pairs(master) do
+        local file = fs.open(v,"r")
+        local data = ""
+        if (not pcall(function() data = file.readAll() end)) then
+            file.close()
+            error("File read failed!")
+        end
+        file.close()
+        base[v] = enc(data)
+    end
+    return base
+end
+
+function checkTamper(tab1)
+    for k,v in pairs(tab1) do
+        if (v ~= ".apt-get_ver" and v~= "info") then
+            local dat = collectBase({v})
+
+            if (masterData[v] ~= dat[v]) then
+                if (color) then term.setTextColor(colors.red) end
+                term.write("File changed: "..v.."! Cache original?[Y/n]: ")
+                input = read()
+                if (color) then term.setTextColor(colors.white) end
+                if (input == "Y" or input == "y" or input == "") then
+                    fs.makeDir(".cachedFiles")
+                    local file = fs.open(".cachedFiles/"..v,"w")
+                    file.write(dec(masterData[v]))
+                    file.close()
+                end
+            end
+        end
+    end
+end
+
+function table.isEqual(tab1,tab2)
+    if (#tab1 ~= #tab2) then return false end
+    for k,v in pairs(tab1) do
+        if (v ~= tab2[k]) then
+            error(v..tab2[k])
+            return false
+        end
+    end
+    return true
+end
+
+function table.compareStructure(tab1,tab2)
+    local newFiles = {}
+    local removedFiles = {}
+    for k,v in pairs(tab2) do
+        local found = false
+        for m,p in pairs(tab1) do
+            if (v==p) then found = true break end
+        end
+        if (not found) then
+            table.insert(newFiles,v) 
+        end
+    end
+    for k,v in pairs(tab1) do
+        local found = false
+        for m,p in next , tab2 do
+            if (v==p) then found = true break end
+        end
+        if (not found) then table.insert(removedFiles,v) end
+    end
+    return #newFiles or 0,#removedFiles or 0,newFiles or {},removedFiles or {}
+end
 
 local registry = 
 {
@@ -24,11 +131,43 @@ local registry =
 local function newRegistry(existing)
     local temp = 
     {
-        keys = {},
+        keys = {},z
     }
     setmetatable(temp,{__index = registry})
     return temp
 end
+
+function writeFile(stuf)
+    file = io.open("info",'w')
+    file:write(stuf)
+    file:close()
+end
+
+---------------------------------------------------------------------------------
+-- Runs an analysis of prior file structure, taking note of added/removed files
+---------------------------------------------------------------------------------
+local masterTable = {} --Holds all files/directories prior to running any package operations (removed from _G to prevent tampering of pre/post-action)
+local total = 0
+local function analyze(directory,tab)
+    mindex = {}
+    if (tab ~= nil) then mindex = tab end
+    for v,k in pairs(fs.list(directory)) do
+        if (not fs.isDir(fs.combine(directory,k))) then
+            total = total + fs.getSize(fs.combine(directory,k))
+            table.insert(mindex,fs.combine(directory,shell.resolve(k)))
+        elseif (fs.isDir(fs.combine(directory,k)) and not fs.isReadOnly(k)) then
+            --print("directory:"..k)
+            mindex = analyze(fs.combine(directory,k),mindex)
+        end
+    end
+    return mindex
+end
+
+masterTable = analyze("/")
+masterData = {}
+writeFile(textutils.serialize(masterData))
+print("Total Size: "..(total/1000)..(((total/1000)>=1) and "kb" or "bytes"))
+
 
 local function prepareKey(dat)
     local re = {}
@@ -108,26 +247,22 @@ function repo()
             if (color) then term.setTextColor(colors.red) end
             print("  [ERROR]")
             if (color) then term.setTextColor(colors.white) end
-            error({code=404})
+            error(textutils.serialize({code=404}))
         end
     end
 end
 repo()
 
-function writeFile(stuf)
-    file = io.open("info",'w')
-    file:write(stuf)
-    file:close()
-end
-
 if (tArgs[1] == "install") then mode = "install" end
 if (tArgs[1] == "remove") then mode = "remove" end
 if (tArgs[1] == "update") then mode = "update" end
 if (tArgs[1] == "upgrade") then mode = "upgrade" end
+if (tArgs[1] == "clean") then fs.delete(".cachedFiles") print("Done!\n") error() end
 
 
 
 if (mode == "install") then --Install
+    masterData = collectBase(masterTable)
     for k,v in ipairs(reg.keys) do
         for i,p in pairs(v) do
             if (p==tArgs[2]) then
@@ -226,10 +361,23 @@ if (mode == "install") then --Install
         end
     end
     resolve()
-    
     if (actions.PreAction ~= nil) then 
-        print("Running pre action...")
-        if (not actions.PreAction()) then return end
+        if (not bypass) then
+            term.write("This package has a pre-action. Execute?[Y/n]: ")
+            local i = read()
+            if (i=="n" or i=="N") then
+                print("Skipping pre-action.")
+            else
+                print("Running pre action")
+                actions.PreAction()
+            end
+        end
+        comp = analyze("/")
+
+        if (not table.isEqual(masterTable,comp)) then 
+            local numA,numR = table.compareStructure(masterTable,comp)
+            print(numA.." new files detected, "..numR.." files removed")
+        end
     end
     local stat,err = pcall(function()
         if (#actions.Dependencies > 0) then
@@ -276,7 +424,7 @@ if (mode == "install") then --Install
     end
     
     
-    term.write("Getting package files... ")
+    print("Getting package files... ")
     local function get()
         if (not isPastebin) then
         	local finlink = false
@@ -293,6 +441,7 @@ if (mode == "install") then --Install
                 http.request(url)
                 requesting = true
                 dat = "";
+                term.write(v[1])
                 while requesting do
                     local event, url, sourceText = os.pullEvent()
                     if event == "http_success" then
@@ -363,13 +512,29 @@ if (mode == "install") then --Install
         if (color) then term.setTextColor(colors.white) end
     end
     clean()
-    
-    if (actions.PostAction ~= nil) then
-        print("Running post action")
-        sleep(2)
-        actions.PostAction()
-    end
 
+    if (actions.PostAction ~= nil) then
+        if (not bypass) then
+            term.write("This package has a post-action. Execute?[Y/n]: ")
+            local i = read()
+            if (i=="n" or i=="N") then
+                print("Skipping post-action.")
+            else
+                print("Running post action")
+                sleep(1)
+                actions.PostAction()
+            end
+        end
+    end
+    comp = analyze("/")
+
+    --writeFile(textutils.serialize(masterTable).."\n"..textutils.serialize(comp))
+
+    if (not table.isEqual(masterTable,comp)) then 
+        local numA,numR = table.compareStructure(masterTable,comp)
+        print(numA.." new file(s) detected, "..numR.." file(s) removed")
+    end
+    checkTamper(masterTable)
     print("Done!\n")
 elseif (mode == "remove") then --Remove
     local found = false
@@ -570,6 +735,14 @@ elseif (mode == "update") then --Update                                         
     
     
     if (actions.PreAction ~= nil) then 
+        if (not bypass) then
+            term.write("This package has a pre-action. Execute?[Y/n]: ")
+            local i = read()
+            if (i=="n" or i=="N") then
+                return
+            end
+        end
+
         print("Running pre action...")
         if (not actions.PreAction()) then return end
     end
@@ -692,9 +865,7 @@ elseif (mode == "update") then --Update                                         
     --parallel.waitForAny(spool(),function() 
         
     --end)
-    
-    
-    
+
     term.write("Cleaning up files... ")
     function clean()
         if (fs.exists("/~tmp")) then
@@ -716,6 +887,14 @@ elseif (mode == "update") then --Update                                         
     --end)
     
     if (actions.PostAction ~= nil) then
+        if (not bypass) then
+            term.write("This package has a post-action. Execute?[Y/n]: ")
+            local i = read()
+            if (i=="n" or i=="N") then
+                return
+            end
+        end
+
         print("Running post action")
         sleep(2)
         actions.PostAction()
