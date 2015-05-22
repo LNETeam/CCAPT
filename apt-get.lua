@@ -14,7 +14,7 @@ local reg = {}
 local info = {}
 local color = term.isColor() and true or false
 local author,version = ""
-local repoAddr = "http://104.131.36.207"
+local repoAddr = "http://104.131.33.156"
 
 local b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
